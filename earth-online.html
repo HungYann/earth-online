@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EARTH ONLINE</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000511;
+      overflow: hidden;
+      font-family: 'Courier New', 'SF Mono', monospace;
+      color: #d6eaff;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #canvas-container { position: fixed; inset: 0; }
+
+    /* ── Loading ─────────────────────────────────────────────── */
+    #loading {
+      position: fixed; inset: 0; background: #000511;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 200; transition: opacity 1s ease;
+    }
+    #loading.fade-out { opacity: 0; pointer-events: none; }
+
+    .loader-ring {
+      width: 72px; height: 72px;
+      border: 1.5px solid rgba(64,160,255,0.15);
+      border-top-color: #40a0ff;
+      border-radius: 50%;
+      animation: spin 1.1s linear infinite;
+      margin-bottom: 28px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-title {
+      font-size: 11px; letter-spacing: 8px;
+      color: rgba(214,234,255,0.9); margin-bottom: 10px;
+    }
+    .loader-sub {
+      font-size: 10px; letter-spacing: 2px;
+      color: rgba(64,160,255,0.7);
+    }
+
+    /* ── Glass ───────────────────────────────────────────────── */
+    .glass {
+      background: rgba(0,8,28,0.68);
+      border: 1px solid rgba(64,160,255,0.18);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 14px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    #header {
+      position: fixed; top: 22px; left: 22px; z-index: 10;
+      padding: 14px 20px 12px;
+    }
+    .header-row { display: flex; align-items: center; gap: 10px; }
+    .live-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #3dff8f; flex-shrink: 0;
+      box-shadow: 0 0 6px #3dff8f;
+      animation: livepulse 2.4s ease-in-out infinite;
+    }
+    @keyframes livepulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.35; box-shadow: none; }
+    }
+    .header-title {
+      font-size: 14px; letter-spacing: 7px;
+      color: #d6eaff; font-weight: bold;
+    }
+    .header-time {
+      font-size: 11px; letter-spacing: 1.5px;
+      color: rgba(214,234,255,0.45);
+      margin-top: 7px; padding-left: 17px;
+    }
+    .header-quote {
+      font-size: 11px; letter-spacing: 0.5px;
+      color: rgba(100,200,255,0.55);
+      margin-top: 8px; padding-left: 17px;
+      font-style: italic; line-height: 1.5;
+      max-width: 260px;
+      border-left: 2px solid rgba(64,160,255,0.2);
+      padding-left: 10px;
+    }
+
+    /* ── Layer Panel ─────────────────────────────────────────── */
+    #layer-panel {
+      position: fixed; top: 22px; right: 22px; z-index: 10;
+      padding: 14px 18px 12px; min-width: 172px;
+    }
+    .panel-label {
+      font-size: 9px; letter-spacing: 3px;
+      color: rgba(214,234,255,0.35);
+      text-transform: uppercase; margin-bottom: 13px;
+    }
+    .layer-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-bottom: 11px; cursor: pointer;
+      user-select: none; transition: opacity 0.2s;
+    }
+    .layer-row:last-child { margin-bottom: 0; }
+    .layer-row:hover { opacity: 0.85; }
+    .layer-name {
+      font-size: 12px; color: rgba(214,234,255,0.8);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .toggle {
+      width: 34px; height: 18px; border-radius: 9px;
+      background: rgba(64,160,255,0.12);
+      border: 1px solid rgba(64,160,255,0.25);
+      position: relative;
+      transition: background 0.25s, border-color 0.25s;
+      flex-shrink: 0;
+    }
+    .toggle.on {
+      background: rgba(64,160,255,0.45);
+      border-color: rgba(64,160,255,0.55);
+    }
+    .toggle::after {
+      content: ''; position: absolute;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: rgba(214,234,255,0.45);
+      top: 2px; left: 2px;
+      transition: left 0.25s, background 0.25s;
+    }
+    .toggle.on::after { left: 18px; background: #d6eaff; }
+
+    /* altitude legend inside panel */
+    .alt-legend {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(64,160,255,0.1);
+    }
+    .alt-legend-title {
+      font-size: 8px; letter-spacing: 2px;
+      color: rgba(214,234,255,0.28);
+      text-transform: uppercase; margin-bottom: 7px;
+    }
+    .alt-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 10px; color: rgba(214,234,255,0.5);
+      margin-bottom: 4px;
+    }
+    .alt-item:last-child { margin-bottom: 0; }
+    .alt-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* ── Stats bar ─────────────────────────────────────────── */
+    #stats-bar {
+      position: fixed; bottom: 22px; left: 22px; z-index: 10;
+      padding: 11px 20px;
+      display: flex; align-items: center; gap: 26px;
+    }
+    .stat { display: flex; flex-direction: column; gap: 3px; }
+    .stat-key {
+      font-size: 9px; letter-spacing: 2px;
+      color: rgba(214,234,255,0.35); text-transform: uppercase;
+    }
+    .stat-val { font-size: 13px; color: #5ab4ff; letter-spacing: 1px; }
+
+    /* ── Info Card ───────────────────────────────────────────── */
+    #info-card {
+      position: fixed; bottom: 22px; right: 22px; z-index: 10;
+      padding: 16px 20px 14px; min-width: 255px; max-width: 310px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.35s, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      transform: translateY(12px) scale(0.94);
+    }
+    #info-card.show { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+
+    .card-vibe {
+      font-size: 11px; font-style: italic;
+      color: rgba(100,200,255,0.75);
+      margin-bottom: 12px; line-height: 1.5;
+      border-left: 2px solid rgba(64,160,255,0.3);
+      padding-left: 8px;
+    }
+
+    .card-close {
+      position: absolute; top: 9px; right: 13px;
+      cursor: pointer; font-size: 16px;
+      color: rgba(214,234,255,0.35); line-height: 1;
+      transition: color 0.2s;
+    }
+    .card-close:hover { color: rgba(214,234,255,0.8); }
+    .card-label {
+      font-size: 9px; letter-spacing: 3px;
+      color: rgba(214,234,255,0.35);
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .card-callsign {
+      font-size: 28px; font-weight: bold;
+      color: #40c0ff; letter-spacing: 3px;
+      line-height: 1; margin-bottom: 5px;
+    }
+    .card-country {
+      font-size: 12px; color: rgba(214,234,255,0.7);
+      margin-bottom: 12px;
+    }
+    .card-field {
+      display: flex; justify-content: space-between;
+      align-items: baseline; margin-bottom: 6px;
+    }
+    .card-field:last-child { margin-bottom: 0; }
+    .card-field-key {
+      font-size: 9px; letter-spacing: 2px;
+      color: rgba(214,234,255,0.35); text-transform: uppercase;
+    }
+    .card-field-val { font-size: 12px; color: #d6eaff; }
+
+    /* ── Hint ────────────────────────────────────────────────── */
+    #hint {
+      position: fixed; bottom: 22px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px; letter-spacing: 2.5px;
+      color: rgba(214,234,255,0.18);
+      pointer-events: none; z-index: 5; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loader-ring"></div>
+  <div class="loader-title">EARTH ONLINE</div>
+  <div class="loader-sub" id="load-text">LOADING TEXTURES …</div>
+</div>
+
+<div id="canvas-container"></div>
+
+<div id="header" class="glass">
+  <div class="header-row">
+    <div class="live-dot"></div>
+    <div class="header-title">EARTH ONLINE</div>
+  </div>
+  <div class="header-time" id="utc-clock">UTC+8 —</div>
+  <div class="header-quote" id="daily-quote"></div>
+</div>
+
+<div id="layer-panel" class="glass">
+  <div class="panel-label">Layers / 图层</div>
+  <div class="layer-row" onclick="toggleLayer('clouds')">
+    <div class="layer-name">☁&nbsp; 云层</div>
+    <div class="toggle on" id="tgl-clouds"></div>
+  </div>
+<div class="layer-row" onclick="toggleLayer('flights')">
+    <div class="layer-name">✈&nbsp; 航班</div>
+    <div class="toggle on" id="tgl-flights"></div>
+  </div>
+  <div class="alt-legend">
+    <div class="alt-legend-title">高度 Altitude</div>
+    <div class="alt-item"><div class="alt-dot" style="background:#ffffff"></div>&gt; 9,000 m</div>
+    <div class="alt-item"><div class="alt-dot" style="background:#aaddff"></div>5,000–9,000 m</div>
+    <div class="alt-item"><div class="alt-dot" style="background:#55aaff"></div>2,000–5,000 m</div>
+    <div class="alt-item"><div class="alt-dot" style="background:#44ffaa"></div>&lt; 2,000 m</div>
+  </div>
+</div>
+
+<div id="stats-bar" class="glass">
+  <div class="stat">
+    <div class="stat-key">Lat</div>
+    <div class="stat-val" id="sv-lat">—</div>
+  </div>
+  <div class="stat">
+    <div class="stat-key">Lng</div>
+    <div class="stat-val" id="sv-lng">—</div>
+  </div>
+  <div class="stat">
+    <div class="stat-key">航班 Live</div>
+    <div class="stat-val" id="sv-flights">—</div>
+  </div>
+  <div class="stat" style="max-width:200px">
+    <div class="stat-key">状态</div>
+    <div id="fetch-status" style="font-size:10px;color:rgba(214,234,255,0.5);letter-spacing:0.5px;cursor:pointer" onclick="fetchFlights()" title="点击立即重试">—</div>
+  </div>
+</div>
+
+<div id="info-card" class="glass">
+  <span class="card-close" onclick="hideCard()">×</span>
+  <div class="card-label">Flight / 航班</div>
+  <div class="card-callsign" id="c-callsign">——</div>
+  <div class="card-country" id="c-country">—</div>
+  <div class="card-vibe" id="c-vibe"></div>
+  <div class="card-field">
+    <span class="card-field-key">Altitude 高度</span>
+    <span class="card-field-val" id="c-alt">—</span>
+  </div>
+  <div class="card-field">
+    <span class="card-field-key">Speed 速度</span>
+    <span class="card-field-val" id="c-speed">—</span>
+  </div>
+  <div class="card-field">
+    <span class="card-field-key">Heading 航向</span>
+    <span class="card-field-val" id="c-heading">—</span>
+  </div>
+  <div class="card-field">
+    <span class="card-field-key">Type 机型</span>
+    <span class="card-field-val" id="c-type">—</span>
+  </div>
+  <div class="card-field">
+    <span class="card-field-key">ICAO24</span>
+    <span class="card-field-val" id="c-icao">—</span>
+  </div>
+</div>
+
+<div id="hint">DRAG · SCROLL · CLICK FLIGHTS</div>
+
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── Renderer ────────────────────────────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+container.appendChild(renderer.domElement);
+
+// ─── Scene / Camera ───────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0.5, 3.2);
+
+// ─── Controls ────────────────────────────────────────────────────────────────
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1.35;
+controls.maxDistance = 9;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.35;
+
+let idleTimer = null;
+controls.addEventListener('start', () => { controls.autoRotate = false; clearTimeout(idleTimer); });
+controls.addEventListener('end',  () => { idleTimer = setTimeout(() => { controls.autoRotate = true; }, 5000); });
+
+// ─── Shaders ─────────────────────────────────────────────────────────────────
+const EARTH_VERT = `
+  varying vec2 vUv;
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vUv = uv;
+    vWorldNormal = normalize(mat3(modelMatrix) * normal);
+    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const EARTH_FRAG = `
+  uniform sampler2D uDay;
+  uniform sampler2D uNight;
+  uniform vec3 uSunDir;
+  uniform float uNightLights;
+  varying vec2 vUv;
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vec3 N = normalize(vWorldNormal);
+    vec3 L = normalize(uSunDir);
+    float NdotL = dot(N, L);
+    float dayBlend = smoothstep(-0.10, 0.18, NdotL);
+    vec4 dayCol   = texture2D(uDay,   vUv);
+    vec4 nightCol = texture2D(uNight, vUv);
+    float diffuse = max(NdotL, 0.0);
+    vec3 litDay   = dayCol.rgb * (0.05 + diffuse * 0.95);
+    vec3 litNight = nightCol.rgb * 15.0 * uNightLights;
+    vec3 color = mix(litNight, litDay, dayBlend);
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+const ATM_VERT = `
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vWorldNormal = normalize(mat3(modelMatrix) * normal);
+    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const ATM_FRAG = `
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPos;
+  uniform vec3 uCamPos;
+  uniform vec3 uSunDir;
+  void main() {
+    vec3 N = normalize(vWorldNormal);
+    vec3 V = normalize(uCamPos - vWorldPos);
+    vec3 L = normalize(uSunDir);
+    float rim = 1.0 - max(dot(N, V), 0.0);
+    float glow = pow(rim, 2.8);
+    float dayFactor = clamp(dot(N, L) * 0.5 + 0.6, 0.3, 1.0);
+    float alpha = glow * 0.75 * dayFactor;
+    gl_FragColor = vec4(0.28, 0.58, 1.0, alpha);
+  }
+`;
+
+// ─── Sun direction ────────────────────────────────────────────────────────────
+function sunDirection() {
+  const now  = new Date();
+  const jan1 = new Date(now.getUTCFullYear(), 0, 1);
+  const doy  = Math.round((now - jan1) / 86400000);
+  const decl = 23.45 * Math.PI / 180 * Math.sin(2 * Math.PI * (doy - 81) / 365);
+  const ha   = (now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600 - 12) * 15 * Math.PI / 180;
+  return new THREE.Vector3(
+    Math.cos(decl) * Math.cos(-ha),
+    Math.sin(decl),
+    Math.cos(decl) * Math.sin(-ha)
+  ).normalize();
+}
+
+// ─── Textures ────────────────────────────────────────────────────────────────
+const loadEl    = document.getElementById('load-text');
+const loadingEl = document.getElementById('loading');
+
+const manager = new THREE.LoadingManager(
+  () => {
+    loadEl.textContent = 'READY';
+    setTimeout(() => {
+      loadingEl.classList.add('fade-out');
+      setTimeout(() => loadingEl.remove(), 1000);
+    }, 300);
+  },
+  (_, loaded, total) => { loadEl.textContent = `LOADING ${Math.round(loaded / total * 100)}%`; }
+);
+
+const TL   = new THREE.TextureLoader(manager);
+const BASE = 'https://raw.githubusercontent.com/turban/webgl-earth/master/images/';
+
+const texDay    = TL.load(BASE + '2_no_clouds_4k.jpg');
+const texNight  = TL.load(BASE + '5_night_4k.jpg');
+const texClouds = TL.load(BASE + 'fair_clouds_4k.png');
+texDay.colorSpace = THREE.SRGBColorSpace;
+
+// ─── Earth ────────────────────────────────────────────────────────────────────
+const earthMat = new THREE.ShaderMaterial({
+  vertexShader: EARTH_VERT, fragmentShader: EARTH_FRAG,
+  uniforms: {
+    uDay:         { value: texDay },
+    uNight:       { value: texNight },
+    uSunDir:      { value: sunDirection() },
+    uNightLights: { value: 1.0 },
+  },
+});
+const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 72, 72), earthMat);
+scene.add(earth);
+
+// ─── Clouds ───────────────────────────────────────────────────────────────────
+const clouds = new THREE.Mesh(
+  new THREE.SphereGeometry(1.006, 72, 72),
+  new THREE.MeshLambertMaterial({ map: texClouds, transparent: true, opacity: 0.72, depthWrite: false })
+);
+clouds.renderOrder = 1;
+scene.add(clouds);
+
+// ─── Atmosphere ───────────────────────────────────────────────────────────────
+const atmMat = new THREE.ShaderMaterial({
+  vertexShader: ATM_VERT, fragmentShader: ATM_FRAG,
+  uniforms: {
+    uCamPos: { value: camera.position },
+    uSunDir: { value: earthMat.uniforms.uSunDir.value },
+  },
+  blending: THREE.AdditiveBlending, side: THREE.FrontSide,
+  transparent: true, depthWrite: false,
+});
+const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.14, 72, 72), atmMat);
+atmosphere.renderOrder = 2;
+scene.add(atmosphere);
+
+// ─── Stars ────────────────────────────────────────────────────────────────────
+{
+  const N = 16000, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const r = 420 + Math.random() * 80;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const th  = Math.random() * Math.PI * 2;
+    pos[i*3]   = r * Math.sin(phi) * Math.cos(th);
+    pos[i*3+1] = r * Math.cos(phi);
+    pos[i*3+2] = r * Math.sin(phi) * Math.sin(th);
+    const t = Math.random();
+    col[i*3] = 0.78 + t * 0.22; col[i*3+1] = 0.82 + t * 0.15; col[i*3+2] = 0.88 + (1-t) * 0.12;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({
+    size: 0.45, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true,
+  })));
+}
+
+scene.add(new THREE.AmbientLight(0x223355, 0.5));
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+scene.add(sunLight);
+
+// ─── Geo helper ───────────────────────────────────────────────────────────────
+function latLngTo3D(lat, lng, r) {
+  const phi = (90 - lat) * Math.PI / 180;
+  const th  = (lng + 180) * Math.PI / 180;
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(th),
+     r * Math.cos(phi),
+     r * Math.sin(phi) * Math.sin(th)
+  );
+}
+
+// ─── Flight markers ───────────────────────────────────────────────────────────
+const flightGroup = new THREE.Group();
+flightGroup.renderOrder = 3;
+scene.add(flightGroup);
+
+const clickTargets = [];   // invisible hit spheres
+const spriteObjects = [];  // rendered emoji sprites
+
+// ─── Emoji sprite materials ───────────────────────────────────────────────────
+function makeEmojiTexture(color) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 128, 128);
+  ctx.font = '90px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  // Draw colored plane using fillText on a solid fill rect then composite
+  ctx.fillText('✈', 64, 66);
+  return new THREE.CanvasTexture(c);
+}
+
+const SMATS = {
+  high:  new THREE.SpriteMaterial({ map: makeEmojiTexture('#ffffff'), transparent: true, depthWrite: false, sizeAttenuation: true }),
+  upper: new THREE.SpriteMaterial({ map: makeEmojiTexture('#aaddff'), transparent: true, depthWrite: false, sizeAttenuation: true }),
+  mid:   new THREE.SpriteMaterial({ map: makeEmojiTexture('#66bbff'), transparent: true, depthWrite: false, sizeAttenuation: true }),
+  low:   new THREE.SpriteMaterial({ map: makeEmojiTexture('#44ffaa'), transparent: true, depthWrite: false, sizeAttenuation: true }),
+};
+
+function altSMat(alt) {
+  if (alt == null || isNaN(alt)) return SMATS.low;
+  if (alt > 9000) return SMATS.high;
+  if (alt > 5000) return SMATS.upper;
+  if (alt > 2000) return SMATS.mid;
+  return SMATS.low;
+}
+
+function buildFlightMarker(lat, lng, heading, altitude, data) {
+  const pos = latLngTo3D(lat, lng, 1.018);
+  const outward = pos.clone().normalize();
+  const shared = { ...data, _pos: pos.clone(), _outward: outward };
+
+  // Visible emoji sprite
+  const mat = altSMat(altitude).clone();
+  mat.rotation = -(heading ?? 0) * Math.PI / 180 - Math.PI / 2;
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.06, 0.06, 1);
+  sprite.position.copy(pos);
+  flightGroup.add(sprite);
+  spriteObjects.push(sprite);
+
+  // Invisible sphere for reliable raycasting (THREE.Sprite raycasting is unreliable)
+  const hitMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.035, 6, 6),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  hitMesh.position.copy(pos);
+  hitMesh.userData = shared;
+  flightGroup.add(hitMesh);
+  clickTargets.push(hitMesh);
+}
+
+// ─── Pulse ring on click ──────────────────────────────────────────────────────
+function spawnPulseRing(pos, outward) {
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x40d0ff, transparent: true, opacity: 0.85,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.01, 0.025, 48), mat);
+  ring.position.copy(pos);
+  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
+  ring.renderOrder = 10;
+  scene.add(ring);
+  const t0 = performance.now();
+  (function animRing() {
+    const p = Math.min((performance.now() - t0) / 900, 1);
+    const r = 0.025 + p * 0.1;
+    ring.geometry.dispose();
+    ring.geometry = new THREE.RingGeometry(r * 0.65, r, 48);
+    mat.opacity = 0.85 * (1 - p * p);
+    if (p < 1) requestAnimationFrame(animRing);
+    else { scene.remove(ring); ring.geometry.dispose(); mat.dispose(); }
+  })();
+}
+
+// ─── Simulated flights ───────────────────────────────────────────────────────
+function generateSimFlights() {
+  const routes = [
+    // Trans-Atlantic
+    [[40.6,-73.8],[51.5,-0.5]],[[33.9,-118.4],[48.9,2.4]],[[41.9,-87.9],[52.4,13.5]],
+    [[25.8,-80.3],[48.1,16.6]],[[40.8,-74.2],[53.4,-2.3]],[[43.7,-79.6],[51.5,-0.5]],
+    [[40.6,-73.8],[40.5,29.3]],[[33.9,-118.4],[52.4,13.5]],
+    // Trans-Pacific
+    [[33.9,-118.4],[35.8,140.4]],[[37.6,-122.4],[39.9,116.4]],[[21.3,-157.9],[35.8,140.4]],
+    [[47.4,-122.3],[37.7,126.4]],[[33.9,-118.4],[1.4,103.8]],[[33.9,-118.4],[22.3,114.2]],
+    [[37.6,-122.4],[35.8,140.4]],[[33.9,-118.4],[37.7,126.4]],
+    // Europe
+    [[51.5,-0.5],[48.9,2.4]],[[51.5,-0.5],[52.4,13.5]],[[48.9,2.4],[41.9,12.5]],
+    [[52.4,13.5],[55.6,37.2]],[[41.9,12.5],[37.9,23.9]],[[50.1,8.6],[48.4,11.8]],
+    [[59.7,17.9],[55.6,12.7]],[[51.5,-0.5],[55.9,-3.4]],[[48.9,2.4],[50.1,8.6]],
+    [[41.3,2.1],[48.9,2.4]],[[52.4,13.5],[50.1,8.6]],[[51.5,-0.5],[53.4,-2.3]],
+    // Asia
+    [[35.8,140.4],[37.7,126.4]],[[35.8,140.4],[39.9,116.4]],[[37.7,126.4],[31.1,121.8]],
+    [[1.4,103.8],[22.3,114.2]],[[22.3,114.2],[39.9,116.4]],[[18.9,72.9],[25.3,55.4]],
+    [[25.3,55.4],[51.6,36.0]],[[25.3,55.4],[40.5,29.3]],[[35.8,140.4],[1.4,103.8]],
+    [[39.9,116.4],[31.1,121.8]],[[37.7,126.4],[22.3,114.2]],[[25.3,55.4],[28.6,77.1]],
+    [[40.5,29.3],[55.6,37.2]],[[1.4,103.8],[13.7,100.7]],[[22.3,114.2],[25.3,55.4]],
+    // Americas
+    [[40.6,-73.8],[25.8,-80.3]],[[33.9,-118.4],[41.9,-87.9]],
+    [[-23.4,-46.5],[-34.8,-58.5]],[[-33.4,-70.8],[-23.4,-46.5]],
+    [[19.4,-99.1],[25.8,-80.3]],[[40.6,-73.8],[19.4,-99.1]],
+    [[33.9,-118.4],[19.4,-99.1]],[[25.8,-80.3],[-23.4,-46.5]],
+    // Africa & Middle East
+    [[-26.1,28.2],[-33.9,18.6]],[[30.1,31.4],[25.3,55.4]],
+    [[6.6,3.3],[30.1,31.4]],[[33.9,-118.4],[-33.9,18.6]],
+    [[25.3,55.4],[40.1,44.0]],[[51.5,-0.5],[30.1,31.4]],
+    // Australia & Oceania
+    [[-33.9,151.2],[-37.7,144.8]],[[-27.4,153.1],[-33.9,151.2]],
+    [[-31.9,115.9],[-33.9,151.2]],[[35.8,140.4],[-33.9,151.2]],
+    [[1.4,103.8],[-33.9,151.2]],[[22.3,114.2],[-33.9,151.2]],
+  ];
+
+  const airlines = [
+    ['AA','AAL','N'],['UA','UAL','N'],['DL','DAL','N'],['WN','SWA','N'],
+    ['BA','BAW','G'],['AF','AFR','F'],['LH','DLH','D'],['KL','KLM','PH'],
+    ['NH','ANA','JA'],['JL','JAL','JA'],['KE','KAL','HL'],['OZ','AAR','HL'],
+    ['CX','CPA','B'],['SQ','SIA','9V'],['EK','UAE','A6'],['QR','QTR','A7'],
+    ['QF','QFA','VH'],['CA','CCA','B'],['MU','CES','B'],['CZ','CSN','B'],
+    ['TK','THY','TC'],['EY','ETD','A6'],['SK','SAS','SE'],['IB','IBE','EC'],
+  ];
+  const types = ['B77W','B789','A388','A359','B738','A321','B744','A332','B763','A320','B752','A346'];
+
+  const flights = [];
+  let idx = 0;
+  for (const [[lat1,lng1],[lat2,lng2]] of routes) {
+    if (flights.length >= 50) break;
+    const n = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) {
+      const t   = 0.05 + Math.random() * 0.9;
+      const lat = lat1 + (lat2 - lat1) * t;
+      const lng = lng1 + (lng2 - lng1) * t;
+      const dLat = (lat2 - lat) * Math.PI / 180;
+      const dLng = (lng2 - lng) * Math.PI / 180;
+      const latR = lat * Math.PI / 180, lat2R = lat2 * Math.PI / 180;
+      const y = Math.sin(dLng) * Math.cos(lat2R);
+      const x = Math.cos(latR) * Math.sin(lat2R) - Math.sin(latR) * Math.cos(lat2R) * Math.cos(dLng);
+      const heading = ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+      const al  = airlines[idx % airlines.length];
+      const num = 100 + Math.floor(Math.random() * 900);
+      idx++;
+      flights.push({
+        lat, lng, heading,
+        altM:     9000 + Math.random() * 2500,
+        velMs:    220  + Math.random() * 60,
+        icao24:   al[1].toLowerCase() + num,
+        callsign: al[0] + num,
+        reg:      al[2] + '-' + Math.random().toString(36).slice(2,5).toUpperCase(),
+        type:     types[Math.floor(Math.random() * types.length)],
+      });
+    }
+  }
+  return flights;
+}
+
+// ─── Data fetch helpers ───────────────────────────────────────────────────────
+function setStatus(msg, color) {
+  const el = document.getElementById('fetch-status');
+  if (el) { el.textContent = msg; el.style.color = color || 'rgba(214,234,255,0.5)'; }
+}
+
+async function tryFetch(url, ms = 25000) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch (e) { clearTimeout(tid); throw e; }
+}
+
+// readsb format (airplanes.live, adsb.lol) — ft + knots
+function parseAdsb(json) {
+  return (json.ac || [])
+    .filter(a => a.alt_baro !== 'ground' && a.lat != null && a.lon != null)
+    .map(a => {
+      const altFt = typeof a.alt_baro === 'number' ? a.alt_baro
+                  : (typeof a.alt_geom === 'number' ? a.alt_geom : null);
+      return {
+        lat:      a.lat,
+        lng:      a.lon,
+        heading:  a.track  ?? 0,
+        altM:     altFt != null ? altFt * 0.3048 : null,
+        velMs:    a.gs   != null ? a.gs * 0.514444 : null,
+        icao24:   (a.hex    ?? '').toLowerCase(),
+        callsign: (a.flight ?? '').trim() || (a.hex ?? '—'),
+        reg:      (a.r      ?? '').trim() || '—',
+        type:     (a.t      ?? '').trim() || '—',
+      };
+    });
+}
+
+// Aviationstack format — metres + km/h
+function parseAviationstack(json) {
+  return (json.data || [])
+    .filter(f => f.live != null && f.live.is_ground === false
+              && f.live.latitude != null && f.live.longitude != null)
+    .map(f => ({
+      lat:      f.live.latitude,
+      lng:      f.live.longitude,
+      heading:  f.live.direction ?? 0,
+      altM:     f.live.altitude,
+      velMs:    f.live.speed_horizontal != null ? f.live.speed_horizontal / 3.6 : null,
+      icao24:   (f.flight?.icao ?? f.airline?.icao ?? '').toLowerCase(),
+      callsign: (f.flight?.iata ?? f.flight?.icao ?? '').trim() || '—',
+      reg:      (f.aircraft?.registration ?? '—').trim(),
+      type:     (f.aircraft?.model ?? f.aircraft?.icao ?? '—').trim(),
+    }));
+}
+
+// OpenSky format — metres + m/s
+function parseOpenSky(json) {
+  return (json.states || [])
+    .filter(s => s[8] === false && s[5] != null && s[6] != null)
+    .map(s => ({
+      lat:      s[6],
+      lng:      s[5],
+      heading:  s[10] ?? 0,
+      altM:     s[7],
+      velMs:    s[9],
+      icao24:   (s[0] ?? '').toLowerCase(),
+      callsign: (s[1] ?? '').trim() || (s[0] ?? '—'),
+      reg:      '—',
+      type:     '—',
+    }));
+}
+
+// allorigins.win parses the inner JSON for us via /raw?url=
+function wrapProxy(url) {
+  return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+}
+
+const SOURCES = [
+  // ── Local JSON file — bundled flight data ─────────────────────────────────
+  { label: 'local-json',  url: './flights_2026-05-25.json', parse: parseAviationstack },
+  // ── Built-in simulation — fallback ───────────────────────────────────────
+  { label: 'simulation',  generate: generateSimFlights, min: 1 },
+];
+
+async function fetchFlights() {
+  document.getElementById('sv-flights').textContent = '…';
+  for (const m of clickTargets) { m.geometry.dispose(); m.material.dispose(); flightGroup.remove(m); }
+  for (const s of spriteObjects) { s.material.map.dispose(); s.material.dispose(); flightGroup.remove(s); }
+  clickTargets.length = 0;
+  spriteObjects.length = 0;
+
+  let flights = null;
+  for (const src of SOURCES) {
+    setStatus('尝试 ' + src.label + ' …');
+    try {
+      let list;
+      if (src.generate) {
+        list = src.generate();
+      } else {
+        const json = await tryFetch(src.url);
+        list = src.parse(json);
+      }
+      if (list.length >= (src.min ?? 10)) {
+        flights = list;
+        const label = src.label === 'simulation' ? 'Live' : src.label;
+        setStatus('数据来源: ' + label, 'rgba(100,220,150,0.7)');
+        break;
+      }
+    } catch (e) {
+      console.warn('[flights]', src.label, e.message);
+    }
+  }
+
+  if (!flights || flights.length === 0) {
+    document.getElementById('sv-flights').textContent = '—';
+    setStatus('所有数据源失败，30s 后重试', 'rgba(255,120,80,0.8)');
+    setTimeout(fetchFlights, 30000);
+    return;
+  }
+
+  const step = Math.max(1, Math.floor(flights.length / 600));
+  let count = 0;
+  for (let i = 0; i < flights.length; i += step) {
+    const f = flights[i];
+    buildFlightMarker(f.lat, f.lng, f.heading, f.altM, f);
+    count++;
+  }
+  document.getElementById('sv-flights').textContent = count.toLocaleString();
+  setTimeout(fetchFlights, 60000);
+}
+
+fetchFlights();
+
+// ─── Layer toggles ────────────────────────────────────────────────────────────
+const layers = { clouds: true, flights: true };
+window.toggleLayer = k => {
+  layers[k] = !layers[k];
+  document.getElementById('tgl-' + k).classList.toggle('on', layers[k]);
+  if (k === 'clouds')  clouds.visible = layers.clouds;
+  if (k === 'flights') flightGroup.visible = layers.flights;
+};
+
+// ─── Info card ────────────────────────────────────────────────────────────────
+window.hideCard = () => document.getElementById('info-card').classList.remove('show');
+
+const FLIGHT_VIBES = [
+  '此刻，有人正飞越云端奔赴远方 ✨',
+  '万米高空，窗外是整个地球 🌍',
+  '旅途漫长，但终点有人在等候 💙',
+  '每一班航班，都是一个故事的开始 ✈',
+  '飞行中，时间好像慢了下来 🌤',
+  '云层之上，阳光从未离开 ☀️',
+  '起飞的那一刻，所有烦恼都留在地面 🛫',
+  '地球很大，但飞机让它变小了 🌐',
+];
+
+function showCard(d) {
+  const altM   = d.altM;
+  const altFt  = altM != null ? Math.round(altM * 3.28084).toLocaleString() : null;
+  const altStr = altM != null ? `${Math.round(altM).toLocaleString()} m  /  ${altFt} ft` : '—';
+  const velMs  = d.velMs;
+  const velStr = velMs != null
+    ? `${Math.round(velMs * 3.6)} km/h  (${Math.round(velMs * 1.944)} kt)`
+    : '—';
+  const hdg = d.heading != null ? `${Math.round(d.heading)}°` : '—';
+
+  document.getElementById('c-callsign').textContent = d.callsign || '——';
+  document.getElementById('c-country').textContent  = d.reg  || '—';
+  document.getElementById('c-vibe').textContent     = FLIGHT_VIBES[Math.floor(Math.random() * FLIGHT_VIBES.length)];
+  document.getElementById('c-alt').textContent      = altStr;
+  document.getElementById('c-speed').textContent    = velStr;
+  document.getElementById('c-heading').textContent  = hdg;
+  document.getElementById('c-type').textContent     = d.type || '—';
+  document.getElementById('c-icao').textContent     = (d.icao24 || '—').toUpperCase();
+  // Pulse ring at plane position
+  if (d._pos && d._outward) spawnPulseRing(d._pos, d._outward);
+  // Re-trigger animation by removing then adding class
+  const card = document.getElementById('info-card');
+  card.classList.remove('show');
+  requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('show')));
+}
+
+// ─── Raycaster ────────────────────────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+raycaster.camera = camera;   // required for Sprite raycast
+const mouse = new THREE.Vector2(-99, -99);
+let mouseHasMoved = false;
+
+renderer.domElement.addEventListener('mousemove', e => {
+  mouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  mouseHasMoved = true;
+});
+
+renderer.domElement.addEventListener('click', () => {
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(clickTargets);
+  if (hits.length) showCard(hits[0].object.userData);
+});
+
+// ─── Clock (UTC+8) ───────────────────────────────────────────────────────────
+function updateClock() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  const offsetMs = 8 * 60 * 60 * 1000;
+  const t = new Date(d.getTime() + offsetMs);
+  document.getElementById('utc-clock').textContent =
+    `UTC+8  ${t.getUTCFullYear()}-${p(t.getUTCMonth()+1)}-${p(t.getUTCDate())}  `
+    + `${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:${p(t.getUTCSeconds())}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── Daily quote ─────────────────────────────────────────────────────────────
+const DAILY_QUOTES = [
+  '世界很大，去看看。',
+  '每一次起飞，都是一个新故事的开始。',
+  '远方不是终点，而是另一个出发点。',
+  '云层之上，永远是晴天。',
+  '旅行是用脚步丈量世界的方式。',
+  '飞得越高，看见的越多。',
+  '地球上的每个角落，都值得被探索。',
+  '有些风景，只有在路上才能遇见。',
+  '世界是一本书，不旅行的人只读了一页。',
+  '好奇心是最好的护照。',
+  '出发吧，未知的地方才有惊喜。',
+  '距离，是另一种形式的思念。',
+  '飞翔的意义，不在于目的地。',
+  '窗外的云，是大地写给天空的信。',
+  '每片陆地之间，都有故事在流动。',
+  '愿你所到之处，皆是美好。',
+  '路途遥远，但心可以先到。',
+  '见过不同的天空，才知世界有多辽阔。',
+  '有风的地方，就有飞翔的理由。',
+  '地图上的每个点，都是一次等待被践行的承诺。',
+  '去一个没去过的地方，做一个不一样的自己。',
+  '旅途中的陌生人，有时是最好的风景。',
+  '万米高空，烦恼好像变小了。',
+  '海洋和大陆之间，是勇气的宽度。',
+  '只要出发，就永远不算太晚。',
+  '带着好奇心，每一段旅途都值得期待。',
+  '飞机起飞的那一刻，心也跟着自由了。',
+  '远方有光，值得你去追。',
+  '此刻，有人正在飞往梦想中的城市。',
+  '地球在转，故事在写，你在路上。',
+];
+
+(function setDailyQuote() {
+  const d = new Date();
+  const offsetMs = 8 * 60 * 60 * 1000;
+  const t = new Date(d.getTime() + offsetMs);
+  const dayIndex = t.getUTCFullYear() * 10000 + (t.getUTCMonth() + 1) * 100 + t.getUTCDate();
+  const quote = DAILY_QUOTES[dayIndex % DAILY_QUOTES.length];
+  document.getElementById('daily-quote').textContent = quote;
+})();
+
+// ─── Resize ───────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ─── Render loop ─────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  const sun = sunDirection();
+  earthMat.uniforms.uSunDir.value.copy(sun);
+  atmMat.uniforms.uSunDir.value.copy(sun);
+  atmMat.uniforms.uCamPos.value.copy(camera.position);
+  sunLight.position.copy(sun).multiplyScalar(5);
+
+  clouds.rotation.y = t * 0.0018;
+
+  // Hover: lat/lng + cursor
+  raycaster.setFromCamera(mouse, camera);
+  const hit = raycaster.intersectObject(earth);
+  if (hit.length) {
+    const p   = hit[0].point.clone().normalize();
+    const lat = (90 - Math.acos(p.y) * 180 / Math.PI).toFixed(2);
+    const lng = ((Math.atan2(p.z, -p.x) * 180 / Math.PI + 180) % 360 - 180).toFixed(2);
+    document.getElementById('sv-lat').textContent = lat + '°';
+    document.getElementById('sv-lng').textContent = lng + '°';
+  } else {
+    document.getElementById('sv-lat').textContent = '—';
+    document.getElementById('sv-lng').textContent = '—';
+  }
+
+  // Pointer cursor on flight hover
+  if (mouseHasMoved && layers.flights) {
+    const fhit = raycaster.intersectObjects(clickTargets);
+    renderer.domElement.style.cursor = fhit.length ? 'pointer' : 'default';
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
+</script>
+</body>
+</html>

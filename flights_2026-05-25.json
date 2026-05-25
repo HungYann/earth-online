@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "source": "aviationstack-format",
+    "generated_at": "2026-05-25T10:30:00Z",
+    "total": 3
+  },
+  "data": [
+    {
+      "flight_date": "2026-05-25",
+      "flight_status": "active",
+      "departure": {
+        "airport": "Tokyo Narita International Airport",
+        "iata": "NRT",
+        "icao": "RJAA",
+        "terminal": "1",
+        "gate": "64",
+        "delay": 10,
+        "scheduled": "2026-05-25T08:00:00+09:00",
+        "estimated": "2026-05-25T08:10:00+09:00",
+        "actual": "2026-05-25T08:12:00+09:00"
+      },
+      "arrival": {
+        "airport": "Beijing Capital International Airport",
+        "iata": "PEK",
+        "icao": "ZBAA",
+        "terminal": "3",
+        "gate": "C12",
+        "delay": 0,
+        "scheduled": "2026-05-25T11:05:00+08:00",
+        "estimated": "2026-05-25T11:05:00+08:00",
+        "actual": null
+      },
+      "airline": {
+        "name": "All Nippon Airways",
+        "iata": "NH",
+        "icao": "ANA"
+      },
+      "flight": {
+        "number": "959",
+        "iata": "NH959",
+        "icao": "ANA959"
+      },
+      "aircraft": {
+        "registration": "JA736A",
+        "iata": "77W",
+        "icao": "B77W",
+        "model": "Boeing 777-300ER"
+      },
+      "live": {
+        "updated": "2026-05-25T09:15:00+09:00",
+        "latitude": 37.5,
+        "longitude": 127.3,
+        "altitude": 10668,
+        "direction": 285,
+        "speed_horizontal": 897.5,
+        "speed_vertical": 0,
+        "is_ground": false
+      }
+    },
+    {
+      "flight_date": "2026-05-25",
+      "flight_status": "landed",
+      "departure": {
+        "airport": "Shanghai Pudong International Airport",
+        "iata": "PVG",
+        "icao": "ZSPD",
+        "terminal": "2",
+        "gate": "B22",
+        "delay": 0,
+        "scheduled": "2026-05-25T06:30:00+08:00",
+        "estimated": "2026-05-25T06:30:00+08:00",
+        "actual": "2026-05-25T06:28:00+08:00"
+      },
+      "arrival": {
+        "airport": "Tokyo Haneda Airport",
+        "iata": "HND",
+        "icao": "RJTT",
+        "terminal": "3",
+        "gate": "107",
+        "delay": 5,
+        "scheduled": "2026-05-25T10:30:00+09:00",
+        "estimated": "2026-05-25T10:35:00+09:00",
+        "actual": "2026-05-25T10:33:00+09:00"
+      },
+      "airline": {
+        "name": "China Eastern Airlines",
+        "iata": "MU",
+        "icao": "CES"
+      },
+      "flight": {
+        "number": "548",
+        "iata": "MU548",
+        "icao": "CES548"
+      },
+      "aircraft": {
+        "registration": "B-2087",
+        "iata": "332",
+        "icao": "A332",
+        "model": "Airbus A330-200"
+      },
+      "live": null
+    },
+    {
+      "flight_date": "2026-05-25",
+      "flight_status": "scheduled",
+      "departure": {
+        "airport": "Tokyo Narita International Airport",
+        "iata": "NRT",
+        "icao": "RJAA",
+        "terminal": "2",
+        "gate": "32",
+        "delay": null,
+        "scheduled": "2026-05-25T18:45:00+09:00",
+        "estimated": "2026-05-25T18:45:00+09:00",
+        "actual": null
+      },
+      "arrival": {
+        "airport": "Seoul Incheon International Airport",
+        "iata": "ICN",
+        "icao": "RKSI",
+        "terminal": "1",
+        "gate": null,
+        "delay": null,
+        "scheduled": "2026-05-25T21:10:00+09:00",
+        "estimated": "2026-05-25T21:10:00+09:00",
+        "actual": null
+      },
+      "airline": {
+        "name": "Japan Airlines",
+        "iata": "JL",
+        "icao": "JAL"
+      },
+      "flight": {
+        "number": "965",
+        "iata": "JL965",
+        "icao": "JAL965"
+      },
+      "aircraft": {
+        "registration": "JA829J",
+        "iata": "789",
+        "icao": "B789",
+        "model": "Boeing 787-9 Dreamliner"
+      },
+      "live": null
+    }
+  ]
+}
