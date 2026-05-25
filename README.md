@@ -2,7 +2,7 @@
 
 一个实时 3D 地球可视化项目，展示全球航班动态、昼夜分布与大气层效果。
 
-**在线预览：** [https://video-7fhyhsizf-goodluck660114-2537s-projects.vercel.app](https://video-7fhyhsizf-goodluck660114-2537s-projects.vercel.app)
+**在线预览：** [https://video-7fhyhsizf-goodluck660114-2537s-projects.vercel.app](https://video-mu-wine.vercel.app/)
 
 ---
 
